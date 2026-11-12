@@ -1,0 +1,52 @@
+# Development only: PostgreSQL published on 127.0.0.1, and dbmate working on the local db/ folder.
+# The official postgres image is used here: the hardened one of production needs a dhi.io login.
+
+services:
+  flollylist-database:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be set}
+      POSTGRES_USER: ${DB_USER:?DB_USER must be set}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    volumes:
+      - db_data:/var/lib/postgresql
+    # Port 5433 by default, so that it does not collide with the development database of Econoris
+    ports:
+      - 127.0.0.1:${DB_PORT:-5433}:5432
+    networks:
+      - flollylist-net
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "pg_isready", "--host=127.0.0.1", "--username=${DB_USER}", "--dbname=${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # dbmate with the local db/ folder mounted.
+  # Default command: applies the pending migrations, then regenerates db/schema.sql
+  flollylist-migrate:
+    image: ghcr.io/amacneil/dbmate:2.36.0
+    environment:
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD:-postgres}@flollylist-database:5432/${DB_NAME}?sslmode=disable
+    command: ["--wait", "up"]
+    volumes:
+      - ./db:/db
+    depends_on:
+      flollylist-database:
+        condition: service_healthy
+    networks:
+      - flollylist-net
+    # Owner of the regenerated db/schema.sql: the developer, not root
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+
+volumes:
+  # Never the name of the production volume: a local trial of the wrapper must not reuse this data
+  db_data:
+    name: flollylist_db_data_dev
+
+networks:
+  # Joined by the docker-compose.dev.yml of flollylist-api, to reach the database by its name
+  flollylist-net:
+    name: flollylist-net
