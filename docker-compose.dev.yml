@@ -2,7 +2,7 @@
 # The official postgres image is used here: the hardened one of production needs a dhi.io login.
 
 services:
-  flollylist-database:
+  hollylist-database:
     image: postgres:18
     environment:
       POSTGRES_DB: ${DB_NAME:?DB_NAME must be set}
@@ -14,7 +14,7 @@ services:
     ports:
       - 127.0.0.1:${DB_PORT:-5433}:5432
     networks:
-      - flollylist-net
+      - hollylist-net
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -26,27 +26,27 @@ services:
 
   # dbmate with the local db/ folder mounted.
   # Default command: applies the pending migrations, then regenerates db/schema.sql
-  flollylist-migrate:
+  hollylist-migrate:
     image: ghcr.io/amacneil/dbmate:2.36.0
     environment:
-      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD:-postgres}@flollylist-database:5432/${DB_NAME}?sslmode=disable
+      DATABASE_URL: postgres://${DB_USER}:${DB_PASSWORD:-postgres}@hollylist-database:5432/${DB_NAME}?sslmode=disable
     command: ["--wait", "up"]
     volumes:
       - ./db:/db
     depends_on:
-      flollylist-database:
+      hollylist-database:
         condition: service_healthy
     networks:
-      - flollylist-net
+      - hollylist-net
     # Owner of the regenerated db/schema.sql: the developer, not root
     user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
 volumes:
   # Never the name of the production volume: a local trial of the wrapper must not reuse this data
   db_data:
-    name: flollylist_db_data_dev
+    name: hollylist_db_data_dev
 
 networks:
-  # Joined by the docker-compose.dev.yml of flollylist-api, to reach the database by its name
-  flollylist-net:
-    name: flollylist-net
+  # Joined by the docker-compose.dev.yml of hollylist-api, to reach the database by its name
+  hollylist-net:
+    name: hollylist-net
