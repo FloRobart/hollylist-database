@@ -1,11 +1,7 @@
 -- ============================================
 -- Migration: 20261108120000_baseline
--- Description: Initial schema of the FlollyList database
+-- Description: Initial schema of the HollyList database
 --              (people, gifts, updated_at function and triggers).
---              The data of the former installation is imported after
---              this migration, never its schema: see "Reprendre les
---              données de l'ancienne installation" in the README of
---              flollylist-wrapper.
 -- Author: Floris Robart
 -- ============================================
 

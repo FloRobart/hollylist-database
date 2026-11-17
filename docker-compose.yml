@@ -1,4 +1,4 @@
-# Production only. The database is reachable only through the internal flollylist-database-net network.
+# Production only. The database is reachable only through the internal hollylist-database-net network.
 
 x-hardened-service: &hardened-service
   read_only: true
@@ -14,7 +14,7 @@ x-hardened-service: &hardened-service
       max-file: "3"
 
 services:
-  flollylist-database:
+  hollylist-database:
     <<: *hardened-service
     image: dhi.io/postgres:18@sha256:76d0081a2d938bff0b16af17136929549be9257f00c006f1b65af68b11e2c0e1
     restart: always
@@ -31,7 +31,7 @@ services:
     tmpfs:
       - /tmp:uid=70,gid=70,mode=0700,noexec,nosuid,nodev,size=64m
     networks:
-      - flollylist-database-net
+      - hollylist-database-net
     mem_limit: ${DB_MEMORY_LIMIT:-1g}
     pids_limit: 256
     shm_size: 256m
@@ -46,18 +46,18 @@ services:
       start_period: 60s
 
   # One-shot service: applies the pending migrations, then exits
-  flollylist-migrate:
+  hollylist-migrate:
     <<: *hardened-service
-    image: florobart/flollylist-migrations:${MIGRATIONS_VERSION:-latest}
+    image: florobart/hollylist-migrations:${MIGRATIONS_VERSION:-latest}
     secrets:
       # dbmate reads ./.env by default, and the image working directory is /
       - source: migrations_env
         target: /.env
     depends_on:
-      flollylist-database:
+      hollylist-database:
         condition: service_healthy
     networks:
-      - flollylist-database-net
+      - hollylist-database-net
     mem_limit: 128m
     pids_limit: 32
 
@@ -66,12 +66,12 @@ services:
   # run code on the server, unlike with the owner of the database.
   # Run on every deployment: the tables of new migrations are granted, and a new password written in
   # its secret file is applied.
-  flollylist-api-role:
+  hollylist-api-role:
     <<: *hardened-service
     # Same image as the database: it already contains psql
     image: dhi.io/postgres:18@sha256:76d0081a2d938bff0b16af17136929549be9257f00c006f1b65af68b11e2c0e1
     environment:
-      PGHOST: flollylist-database
+      PGHOST: hollylist-database
       PGUSER: ${DB_USER:?DB_USER must be set}
       PGDATABASE: ${DB_NAME:?DB_NAME must be set}
     secrets:
@@ -84,17 +84,17 @@ services:
       - -c
       - |
         PGPASSWORD="$$(cat /run/secrets/db_password)" psql --quiet --no-psqlrc -v ON_ERROR_STOP=1 <<SQL
-        SELECT 'CREATE ROLE flollylist_api LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'flollylist_api') \gexec
-        ALTER ROLE flollylist_api PASSWORD '$$(cat /run/secrets/api_role_password)';
-        GRANT USAGE ON SCHEMA public TO flollylist_api;
-        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO flollylist_api;
-        REVOKE ALL ON schema_migrations FROM flollylist_api;
+        SELECT 'CREATE ROLE hollylist_api LOGIN' WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'hollylist_api') \gexec
+        ALTER ROLE hollylist_api PASSWORD '$$(cat /run/secrets/api_role_password)';
+        GRANT USAGE ON SCHEMA public TO hollylist_api;
+        GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO hollylist_api;
+        REVOKE ALL ON schema_migrations FROM hollylist_api;
         SQL
     depends_on:
-      flollylist-migrate:
+      hollylist-migrate:
         condition: service_completed_successfully
     networks:
-      - flollylist-database-net
+      - hollylist-database-net
     mem_limit: 128m
     pids_limit: 32
 
@@ -103,16 +103,16 @@ secrets:
     file: ./secrets/db_password
   migrations_env:
     file: ./secrets/migrations.env
-  # Password of the role of the API, with letters and digits only, applied by flollylist-api-role
+  # Password of the role of the API, with letters and digits only, applied by hollylist-api-role
   api_role_password:
     file: ./secrets/api_db_password
 
 volumes:
   db_data:
-    name: ${DB_VOLUME_NAME:-flollylist_db_data}
+    name: ${DB_VOLUME_NAME:-hollylist_db_data}
 
 networks:
-  # Same definition as in flollylist-api: "name" makes both repositories join one network
-  flollylist-database-net:
-    name: flollylist-database-net
+  # Same definition as in hollylist-api: "name" makes both repositories join one network
+  hollylist-database-net:
+    name: hollylist-database-net
     internal: true
